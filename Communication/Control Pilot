@@ -1,0 +1,336 @@
+⚡ Control Pilot (CP) Communication in EV Charging
+
+A comprehensive guide to IEC 61851 Control Pilot (CP) communication, PWM signaling, EV state detection, and charger-to-vehicle interaction.
+
+📖 Overview
+
+The Control Pilot (CP) is the primary communication interface between an Electric Vehicle (EV) and an Electric Vehicle Supply Equipment (EVSE) as defined in IEC 61851 and SAE J1772.
+
+Before any power is delivered, the CP line ensures:
+
+Safe vehicle detection
+Charging readiness verification
+Maximum current advertisement
+Cable integrity validation
+Fault detection and protection
+
+Without successful CP communication, charging cannot begin.
+
+🏗️ Control Pilot Architecture
+<p align="center"> <img src="images/cp-ev-evse image.png" width="100%"> </p>
+
+<p align="center"> <img src="images/ev-evse, cp communication.png" width="100%"> </p>
+
+
+
+How CP Actually Works
+                 EVSE
+        ┌───────────────────┐
+        │ 1 kHz Oscillator  │
+        │ ±12V PWM Source   │
+        └─────────┬─────────┘
+                  │
+                 R1
+                1kΩ
+                  │
+                  │ CP
+                  │
+         ┌────────┴────────┐
+         │                 │
+         │      EV         │
+         │                 │
+         │ Diode           │
+         │ R2 = 2.74kΩ     │
+         │ R3 = 1.3kΩ      │
+         └────────┬────────┘
+                  │
+                 PE
+What Happens Here?
+
+The charger continuously generates a 1 kHz PWM waveform with amplitudes of +12 V and -12 V.
+
+The signal travels through the CP conductor into the vehicle.
+
+The EV modifies the signal by connecting different resistor combinations between CP and Protective Earth (PE).
+
+The charger continuously measures the resulting voltage using an ADC connected to its MCU.
+
+Based on the measured voltage, the charger determines the current charging state.
+Why Does IEC 61851 Use ±12V Instead of Only +12V?
+
+Many engineers assume the CP line is only used for current advertisement.
+
+In reality, the negative half cycle provides an additional safety mechanism.
+
+Positive Half Cycle
+
+Used for:
+
+Vehicle detection
+State identification
+PWM current advertisement
+Negative Half Cycle
+
+Used for:
+
+Diode verification
+Cable integrity check
+CP fault detection
+
+If the charger does not detect the expected negative response, charging is immediately prohibited.
+
+This prevents charging with damaged cables or faulty vehicle interfaces.
+Components
+EVSE (Charger)	EV (Vehicle)
+1 kHz PWM Generator	CP Detection Circuit
+±12V Signal Source	State Resistors
+Voltage Measurement Circuit	Safety Diode
+Contactor Controller	BMS Interface
+🔌 CP Signal Fundamentals
+
+The charger continuously generates a:
+
+Frequency : 1 kHz
+Amplitude : ±12 V
+Signal Type : PWM
+
+Example waveform:
+
+ +12V  ┌────┐    ┌────┐
+        │    │    │    │
+  0V ───┘    └────┘    └──
+
+ -12V ─────────────────────
+
+The vehicle modifies the voltage level by connecting different resistors between CP and PE (Protective Earth).
+
+The charger continuously measures the CP voltage to determine the vehicle state.
+
+⚙️ Why Does CP Use Both +12V and -12V?
+Positive Half Cycle (+12V)
+
+Used for:
+
+Vehicle detection
+State determination
+PWM current advertisement
+Negative Half Cycle (-12V)
+
+Used for:
+
+Diode verification
+CP line integrity check
+Fault detection
+Why Is the Diode Important?
+
+The diode inside the EV ensures that current flows only in the expected direction during the negative half cycle.
+
+If the charger cannot detect the expected negative response:
+
+Charging Disabled
+
+Possible causes:
+
+Missing diode
+Damaged charging cable
+CP circuit fault
+Vehicle-side failure
+🚗 IEC 61851 State Machine
+
+The EV communicates its charging state by changing the resistance connected between CP and PE.
+
+State A — No Vehicle Connected
+Electrical Condition
+Open Circuit
+CP Voltage
++12 V
+Meaning
+
+No EV connected.
+
+Charger Behaviour
+Contactor : OPEN
+Power Flow : Disabled
+State B — Vehicle Connected
+Electrical Condition
+R = 2.74 kΩ
+CP Voltage
+≈ +9 V
+Meaning
+
+Vehicle detected but not ready to charge.
+
+Charger Behaviour
+Vehicle Present
+Waiting for Charging Request//////
+State B (Vehicle Connected)
+
+When the connector is inserted, resistor R2 (2.74 kΩ) is connected between CP and PE.
+
+This creates a voltage divider with R1 (1 kΩ) located inside the charger.
+
+Calculation:
+
+Vcp = 12 × (2.74 / (1 + 2.74))
+
+Vcp ≈ 8.8 V
+
+Rounded to:
+
+9 V
+
+The charger interprets this as:
+
+State B = Vehicle Present////
+State C — Ready To Charge
+Electrical Condition
+2.74 kΩ || 1.3 kΩ
+CP Voltage
+≈ +6 V
+Meaning
+
+Vehicle requests charging.
+
+The EV has completed:
+
+BMS checks
+Ground verification
+Internal safety validation
+Charger Behaviour
+Close Contactor
+Enable Power Delivery
+State D — Ventilation Required
+Electrical Condition
+2.74 kΩ || 270 Ω
+CP Voltage
+≈ +3 V
+Meaning
+
+Vehicle requires external ventilation during charging.
+
+Usage
+
+Historically used for:
+
+Lead-acid battery systems
+Gas-emitting battery technologies
+
+Rarely used in modern lithium-ion EVs.
+
+📊 IEC 61851 Voltage States
+State	CP Voltage	Description
+A	+12V	No EV Connected
+B	+9V	EV Connected
+C	+6V	Ready To Charge
+D	+3V	Ventilation Required
+📡 PWM Communication
+
+The voltage state identifies the vehicle condition.
+
+The PWM duty cycle advertises the maximum current available from the charger.
+
+Current Advertisement Formula
+
+For duty cycles between 10% and 85%:
+
+Maximum Current (A)
+
+Imax = Duty Cycle (%) × 0.6
+Examples
+Duty Cycle	Available Current
+10%	6 A
+20%	12 A
+30%	18 A
+50%	30 A
+60%	36 A
+80%	48 A
+85%	51 A
+🔄 Complete Charging Sequence
+Step 1 – Idle State
+CP = +12V
+
+State A
+
+No vehicle detected.
+
+Step 2 – Vehicle Plugged In
+CP = +9V
+
+State B
+
+Vehicle presence confirmed.
+
+Step 3 – EV Requests Charging
+CP = +6V
+
+State C
+
+Vehicle ready to receive power.
+
+Step 4 – Contactor Closure
+
+EVSE detects State C.
+
+Contactor → CLOSED
+
+AC power becomes available.
+
+Step 5 – Current Negotiation
+
+PWM duty cycle is transmitted.
+
+Example:
+
+Duty Cycle = 50%
+
+Vehicle calculates:
+
+Maximum Current = 30A
+Step 6 – Active Charging
+
+Charging continues while CP is continuously monitored.
+
+Any unexpected transition:
+
+6V → 9V
+
+or
+
+6V → 12V
+
+causes immediate charging termination.
+
+🔍 Troubleshooting Guide (NOC Engineer Perspective)
+Observation	Possible Root Cause
+CP stuck at +12V	Vehicle not detected
+CP stuck at +9V	EV not requesting charge
+CP stuck at +6V	Contactor or power stage issue
+No negative pulse	Missing diode or cable fault
+CP oscillates 9V ↔ 6V	Loose connector
+Sudden jump to 12V	Vehicle unplugged
+Wrong PWM duty cycle	Configuration mismatch
+🎯 Key Takeaways
+
+✅ CP is the first communication channel established between EV and EVSE.
+
+✅ Voltage level indicates vehicle state.
+
+✅ PWM duty cycle indicates available current.
+
+✅ Negative half cycle is used for safety validation.
+
+✅ Charging is only permitted in State C.
+
+✅ CP monitoring remains active throughout the charging session.
+
+📚 References
+IEC 61851
+IEC 62196
+SAE J1772
+ISO 15118
+OCPP 1.6J
+OCPP 2.0.1
+👨‍💻 Author
+
+Avanish
+EV Charging Infrastructure | OCPP | NOC Engineering | EVSE Troubleshooting
