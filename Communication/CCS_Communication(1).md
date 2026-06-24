@@ -7,7 +7,7 @@
 ## 🏗️ CCS Communication Architecture
 
 <p align="center">
-  <img src="./images/ccs-communication.png" width="100%">
+  <img src="./images/CCS_Communication.png" width="100%">
 </p>
 
 ---
